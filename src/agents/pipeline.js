@@ -19,7 +19,7 @@
 //   • Everything runs locally in-browser, no AWS dependency
 // ============================================================
 
-import { callGemini, sleep }                                   from "./geminiClient.js";
+import { callGemini, sleep, isGeminiAuthError }                from "./geminiClient.js";
 import { RISK_SYS, POLICY_SYS, MITIGATION_SYS, SUMMARY_SYS }  from "./prompts.js";
 import { buildIndex, retrieve, chunkText }                     from "../utils/rag.js";
 import { fileToText }                                          from "../utils/fileParser.js";
@@ -133,6 +133,10 @@ export async function runPipeline({ apiKey, srsFile, brdFile, policyFile, onLog,
     if (!Array.isArray(rawRisks)) throw new Error("Response is not an array");
     logAndBuffer("risk", `✓ Found ${rawRisks.length} risks`, "success");
   } catch (e) {
+    if (isGeminiAuthError(e)) {
+      logAndBuffer("risk", `✗ ${e.message}`, "error");
+      throw e;
+    }
     logAndBuffer("risk", `✗ ${e.message}`, "error");
     rawRisks = [];
   }
@@ -179,6 +183,10 @@ export async function runPipeline({ apiKey, srsFile, brdFile, policyFile, onLog,
         logAndBuffer("pol", `✓ Policy check complete (${arr.length} results)`, "success");
         return arr;
       } catch (e) {
+        if (isGeminiAuthError(e)) {
+          logAndBuffer("pol", `✗ ${e.message}`, "error");
+          throw e;
+        }
         logAndBuffer("pol", `✗ ${e.message}`, "error");
         return [];
       }
@@ -197,6 +205,10 @@ export async function runPipeline({ apiKey, srsFile, brdFile, policyFile, onLog,
         logAndBuffer("mit", `✓ Mitigation strategies generated (${arr.length} results)`, "success");
         return arr;
       } catch (e) {
+        if (isGeminiAuthError(e)) {
+          logAndBuffer("mit", `✗ ${e.message}`, "error");
+          throw e;
+        }
         logAndBuffer("mit", `✗ ${e.message}`, "error");
         return [];
       }
@@ -233,6 +245,10 @@ export async function runPipeline({ apiKey, srsFile, brdFile, policyFile, onLog,
     );
     logAndBuffer("sum", "✓ Summary complete", "success");
   } catch (e) {
+    if (isGeminiAuthError(e)) {
+      logAndBuffer("sum", `✗ ${e.message}`, "error");
+      throw e;
+    }
     logAndBuffer("sum", `✗ ${e.message} — using computed fallback`, "error");
     summary = buildFallbackSummary(mergedRisks);
   }

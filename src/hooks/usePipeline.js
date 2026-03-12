@@ -20,6 +20,7 @@ export function usePipeline() {
   const [apiKey,    setApiKey]    = useState(
     import.meta.env.VITE_GEMINI_API_KEY ?? ""
   );
+  const [error,     setError]     = useState("");
 
   const addLog = useCallback((agent, msg, type = "info") => {
     setLogs((prev) => [...prev, { agent, msg, type, ts: Date.now() }]);
@@ -27,6 +28,7 @@ export function usePipeline() {
 
   const start = useCallback(async (key, srsFile, brdFile, policyFile) => {
     setApiKey(key);
+    setError("");
     setScreen("analyzing");
     setLogs([]);
     setProgress(0);
@@ -56,6 +58,9 @@ export function usePipeline() {
     } catch (e) {
       addLog("sys", `Pipeline error: ${e.message}`, "error");
       setStage(`Error: ${e.message}`);
+      setError(e.message || "Unknown error");
+      await sleep(400);
+      setScreen("upload");
     }
   }, [addLog]);
 
@@ -69,12 +74,13 @@ export function usePipeline() {
     setLogs([]);
     setProgress(0);
     setStage("");
+    setError("");
   }, []);
 
   return {
     screen, logs, progress, stage,
     risks, summary, ragIndex,
     sessionId, reportUrl,
-    apiKey, start, reset,
+    apiKey, error, start, reset,
   };
 }

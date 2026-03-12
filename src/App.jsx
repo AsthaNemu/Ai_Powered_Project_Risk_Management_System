@@ -13,12 +13,12 @@ export default function App() {
     screen, logs, progress, stage,
     risks, summary, ragIndex,
     sessionId, reportUrl,
-    apiKey, start, reset,
+    apiKey, error, start, reset,
   } = usePipeline();
 
   return (
     <>
-      {screen === "upload"    && <UploadView    onStart={start} defaultApiKey={apiKey} />}
+      {screen === "upload"    && <UploadView    onStart={start} defaultApiKey={apiKey} error={error} />}
       {screen === "analyzing" && <AnalysisView  logs={logs} progress={progress} stage={stage} />}
       {screen === "dashboard" && (
         <DashboardView
