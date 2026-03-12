@@ -161,6 +161,19 @@ export async function dynamoPutRisks(sessionId, risks) {
 }
 
 /**
+ * Load all risk assessment rows for a session from DynamoDB.
+ *
+ * @param {string} sessionId
+ * @returns {Promise<object[]|null>}
+ */
+export async function dynamoLoadRisks(sessionId) {
+  return callLambda("dynamo_load_risks", {
+    sessionId,
+    table: AWS.dynamoRiskTable,
+  });
+}
+
+/**
  * Append a copilot chat message to DynamoDB.
  * Each message is a separate item: SK = "CHAT#<timestamp>"
  *

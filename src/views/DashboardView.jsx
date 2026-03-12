@@ -10,6 +10,7 @@ import DashboardVisuals  from "../components/dashboard/DashboardVisuals.jsx";
 import RiskTable         from "../components/dashboard/RiskTable.jsx";
 import Copilot           from "../components/dashboard/Copilot.jsx";
 import { APP, USE_AWS }  from "../config.js";
+import { dynamoLoadRisks } from "../aws/awsService.js";
 
 const TABS = [
   { id: "overview", label: "📊  Overview"      },
@@ -19,8 +20,13 @@ const TABS = [
 
 export default function DashboardView({ risks, summary, ragIndex, apiKey, sessionId, reportUrl, onReset }) {
   const [tab, setTab] = useState("overview");
+  const [awsRisks, setAwsRisks] = useState(null);
+  const [awsLoading, setAwsLoading] = useState(false);
+  const [awsError, setAwsError] = useState("");
 
-  const criticalCount = risks.filter((r) => r.severity === "Critical").length;
+  const effectiveRisks = awsRisks ?? risks;
+
+  const criticalCount = effectiveRisks.filter((r) => r.severity === "Critical").length;
   const scoreColor    = (summary?.overall_score ?? 0) > 70 ? T.red : T.amber;
 
   return (
@@ -56,7 +62,7 @@ export default function DashboardView({ risks, summary, ragIndex, apiKey, sessio
                   transition: "all 0.15s",
                 }}
               >
-                {t.id === "risks" ? `🔍  Risk Register (${risks.length})` : t.label}
+                {t.id === "risks" ? `🔍  Risk Register (${effectiveRisks.length})` : t.label}
               </button>
             ))}
           </div>
@@ -117,7 +123,50 @@ export default function DashboardView({ risks, summary, ragIndex, apiKey, sessio
         )}
 
         {tab === "risks" && (
-          <RiskTable risks={risks} />
+          <>
+            {USE_AWS && sessionId && (
+              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={async () => {
+                    if (awsLoading) return;
+                    setAwsLoading(true);
+                    setAwsError("");
+                    try {
+                      const rows = await dynamoLoadRisks(sessionId);
+                      setAwsRisks(rows || []);
+                    } catch (e) {
+                      setAwsError(e.message || "Failed to load risks from AWS");
+                    } finally {
+                      setAwsLoading(false);
+                    }
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    fontSize: 11,
+                    fontFamily: T.mono,
+                    borderRadius: 4,
+                    border: `1px solid ${T.cyan}`,
+                    background: awsLoading ? `${T.cyan}10` : `${T.cyan}20`,
+                    color: T.cyan,
+                    cursor: awsLoading ? "default" : "pointer",
+                  }}
+                >
+                  {awsLoading ? "Loading from DynamoDB…" : "Load Risk Data from DynamoDB"}
+                </button>
+                {awsRisks && !awsLoading && !awsError && (
+                  <span style={{ fontSize: 11, color: T.textDim, fontFamily: T.mono }}>
+                    Showing {awsRisks.length} rows from AWS ({sessionId})
+                  </span>
+                )}
+                {awsError && (
+                  <span style={{ fontSize: 11, color: T.red, fontFamily: T.mono }}>
+                    {awsError}
+                  </span>
+                )}
+              </div>
+            )}
+            <RiskTable risks={effectiveRisks} />
+          </>
         )}
 
         {tab === "copilot" && (

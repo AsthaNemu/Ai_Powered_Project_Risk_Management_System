@@ -109,6 +109,7 @@ export const handler = async (event) => {
       case "dynamo_get_session":   return ok(await dynamoGetSession(body));
       case "dynamo_list_sessions": return ok(await dynamoListSessions(body));
       case "dynamo_put_risks":     return ok(await dynamoPutRisks(body));
+      case "dynamo_load_risks":    return ok(await dynamoLoadRisks(body));
       case "dynamo_save_chat":     return ok(await dynamoSaveChat(body));
       case "dynamo_load_chat":     return ok(await dynamoLoadChat(body));
 
@@ -285,6 +286,23 @@ async function dynamoPutRisks({ sessionId, risks, table }) {
 
   console.log(`[DDB] Stored ${risks.length} risk items for session ${sessionId}`);
   return { saved: risks.length };
+}
+
+async function dynamoLoadRisks({ sessionId, table }) {
+  if (!sessionId) {
+    throw new Error("dynamo_load_risks requires sessionId");
+  }
+
+  const { Items = [] } = await dynamo.send(new QueryCommand({
+    TableName:              table || RISK_TABLE,
+    KeyConditionExpression: "PK = :pk",
+    ExpressionAttributeValues: {
+      ":pk": sessionId,
+    },
+    ScanIndexForward: true,
+  }));
+
+  return Items;
 }
 
 // ════════════════════════════════════════════════════════════
