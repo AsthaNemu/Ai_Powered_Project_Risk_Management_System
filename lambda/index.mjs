@@ -53,11 +53,13 @@ import {
 } from "@aws-sdk/client-cloudwatch-logs";
 
 // ── AWS Clients (region from Lambda execution environment) ──
-const REGION  = process.env.AWS_REGION || "us-east-1";
-const BUCKET  = process.env.S3_BUCKET  || "riskshield-reports";
-const TABLE   = process.env.DYNAMO_TABLE || "riskshield-sessions";
-const ORIGIN  = process.env.ALLOWED_ORIGIN || "*";
-const LOG_GROUP = "/riskshield/pipeline";
+const REGION         = process.env.AWS_REGION           || "us-east-1";
+const BUCKET         = process.env.S3_BUCKET            || "riskshield-reports";
+const SESSIONS_TABLE = process.env.DYNAMO_SESSION_TABLE || "riskshield-sessions";
+const RISK_TABLE     = process.env.DYNAMO_RISK_TABLE    || "riskshield-risk-data";
+const CHAT_TABLE     = process.env.DYNAMO_CHAT_TABLE    || "riskshield-chat-history";
+const ORIGIN         = process.env.ALLOWED_ORIGIN       || "*";
+const LOG_GROUP      = "/riskshield/pipeline";
 
 const s3      = new S3Client({ region: REGION });
 const dynamo  = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
@@ -106,6 +108,7 @@ export const handler = async (event) => {
       case "dynamo_put_session":   return ok(await dynamoPutSession(body));
       case "dynamo_get_session":   return ok(await dynamoGetSession(body));
       case "dynamo_list_sessions": return ok(await dynamoListSessions(body));
+      case "dynamo_put_risks":     return ok(await dynamoPutRisks(body));
       case "dynamo_save_chat":     return ok(await dynamoSaveChat(body));
       case "dynamo_load_chat":     return ok(await dynamoLoadChat(body));
 
@@ -168,9 +171,9 @@ async function s3LoadReport({ sessionId, bucket = BUCKET }) {
 //  DYNAMODB HANDLERS
 // ════════════════════════════════════════════════════════════
 
-async function dynamoPutSession({ sessionId, meta, table = TABLE }) {
+async function dynamoPutSession({ sessionId, meta, table }) {
   await dynamo.send(new PutCommand({
-    TableName: table,
+    TableName: table || SESSIONS_TABLE,
     Item: {
       PK:          sessionId,
       SK:          "META",
@@ -185,19 +188,19 @@ async function dynamoPutSession({ sessionId, meta, table = TABLE }) {
   return { sessionId };
 }
 
-async function dynamoGetSession({ sessionId, table = TABLE }) {
+async function dynamoGetSession({ sessionId, table }) {
   const res = await dynamo.send(new GetCommand({
-    TableName: table,
+    TableName: table || SESSIONS_TABLE,
     Key: { PK: sessionId, SK: "META" },
   }));
   return res.Item ?? null;
 }
 
-async function dynamoListSessions({ table = TABLE }) {
+async function dynamoListSessions({ table }) {
   // Note: For production, use a GSI on createdAt.
   // For free-tier dev, a small Scan is fine (< 25 RCU limit).
   const { Items = [] } = await dynamo.send(new QueryCommand({
-    TableName:              table,
+    TableName:              table || SESSIONS_TABLE,
     KeyConditionExpression: "SK = :sk",
     ExpressionAttributeValues: { ":sk": "META" },
     IndexName:              "SK-index",  // create this GSI in DynamoDB console
@@ -207,10 +210,10 @@ async function dynamoListSessions({ table = TABLE }) {
   return Items;
 }
 
-async function dynamoSaveChat({ sessionId, role, text, table = TABLE }) {
+async function dynamoSaveChat({ sessionId, role, text, table }) {
   const ts = Date.now();
   await dynamo.send(new PutCommand({
-    TableName: table,
+    TableName: table || CHAT_TABLE,
     Item: {
       PK:        sessionId,
       SK:        `CHAT#${ts}`,
@@ -223,9 +226,9 @@ async function dynamoSaveChat({ sessionId, role, text, table = TABLE }) {
   return { saved: true };
 }
 
-async function dynamoLoadChat({ sessionId, table = TABLE }) {
+async function dynamoLoadChat({ sessionId, table }) {
   const { Items = [] } = await dynamo.send(new QueryCommand({
-    TableName:              table,
+    TableName:              table || CHAT_TABLE,
     KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
     ExpressionAttributeValues: {
       ":pk":     sessionId,
@@ -234,6 +237,54 @@ async function dynamoLoadChat({ sessionId, table = TABLE }) {
     ScanIndexForward: true,  // chronological order
   }));
   return Items.map(({ role, text, timestamp }) => ({ role, text, timestamp }));
+}
+
+async function dynamoPutRisks({ sessionId, risks, table }) {
+  if (!Array.isArray(risks) || !sessionId) {
+    throw new Error("dynamo_put_risks requires sessionId and risks[]");
+  }
+
+  const levelFromSeverity = (severity) => {
+    switch (severity) {
+      case "Critical":
+      case "High":
+        return "High";
+      case "Medium":
+        return "Medium";
+      case "Low":
+      default:
+        return "Low";
+    }
+  };
+
+  for (const risk of risks) {
+    const id         = risk.id;
+    const type       = risk.category;
+    const likelihood = Number(risk.likelihood || 0);
+    const impact     = Number(risk.impact || 0);
+    const score      = likelihood * impact;
+    const level      = levelFromSeverity(risk.severity);
+    const mitigation = risk.mitigation || "";
+    const violated   = risk.policy_status === "FAIL";
+
+    await dynamo.send(new PutCommand({
+      TableName: table || RISK_TABLE,
+      Item: {
+        PK:                 sessionId,
+        SK:                 id,
+        riskId:             id,
+        riskType:           type,
+        riskScore:          score,
+        riskLevel:          level,
+        mitigationStrategy: mitigation,
+        policyViolated:     violated,
+        ttl:                ttl30d(),
+      },
+    }));
+  }
+
+  console.log(`[DDB] Stored ${risks.length} risk items for session ${sessionId}`);
+  return { saved: risks.length };
 }
 
 // ════════════════════════════════════════════════════════════

@@ -145,6 +145,22 @@ export async function dynamoListSessions() {
 }
 
 /**
+ * Persist all risks for a session into the Risk Assessment table.
+ * Each risk becomes one row keyed by (sessionId, riskId).
+ *
+ * @param {string} sessionId
+ * @param {Array<object>} risks
+ * @returns {Promise<{saved: number}|null>}
+ */
+export async function dynamoPutRisks(sessionId, risks) {
+  return callLambda("dynamo_put_risks", {
+    sessionId,
+    risks,
+    table: AWS.dynamoRiskTable,
+  });
+}
+
+/**
  * Append a copilot chat message to DynamoDB.
  * Each message is a separate item: SK = "CHAT#<timestamp>"
  *
@@ -158,7 +174,7 @@ export async function dynamoSaveChatMessage(sessionId, role, text) {
     sessionId,
     role,
     text,
-    table: AWS.dynamoTable,
+    table: AWS.dynamoChatTable,
   });
 }
 
@@ -171,7 +187,7 @@ export async function dynamoSaveChatMessage(sessionId, role, text) {
 export async function dynamoLoadChatHistory(sessionId) {
   return callLambda("dynamo_load_chat", {
     sessionId,
-    table: AWS.dynamoTable,
+    table: AWS.dynamoChatTable,
   });
 }
 

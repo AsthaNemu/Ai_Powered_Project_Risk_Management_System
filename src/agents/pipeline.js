@@ -28,6 +28,7 @@ import {
   s3UploadDocument,
   s3SaveReport,
   dynamoPutSession,
+  dynamoPutRisks,
   cloudwatchFlushLogs,
   generateSessionId,
 } from "../aws/awsService.js";
@@ -254,6 +255,10 @@ export async function runPipeline({ apiKey, srsFile, brdFile, policyFile, onLog,
         s3ReportKey:  saved?.s3Key ?? "",
       });
       logAndBuffer("aws", `☁  Session ${sessionId} persisted to DynamoDB`, "success");
+
+      // Risk Assessment table — one row per risk with score, level, mitigation, policy flag
+      await dynamoPutRisks(sessionId, mergedRisks);
+      logAndBuffer("aws", `☁  ${mergedRisks.length} risk rows stored in DynamoDB`, "success");
     } catch (e) {
       logAndBuffer("aws", `⚠ AWS save failed: ${e.message}`, "error");
     }

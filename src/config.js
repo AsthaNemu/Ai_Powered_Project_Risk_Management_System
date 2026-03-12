@@ -71,8 +71,13 @@ export const AWS = {
   // S3 bucket name (Lambda writes to this, frontend gets presigned URLs back)
   s3Bucket:   import.meta.env.VITE_AWS_S3_BUCKET   ?? "riskshield-reports",
 
-  // DynamoDB table name for session + chat history persistence
-  dynamoTable: import.meta.env.VITE_AWS_DYNAMO_TABLE ?? "riskshield-sessions",
+  // DynamoDB table names
+  //  - Sessions: high-level session metadata
+  //  - Risks:   flattened risk register rows (per risk)
+  //  - Chat:    Copilot chat history (user/system turns)
+  dynamoTable:      import.meta.env.VITE_AWS_DYNAMO_TABLE      ?? "riskshield-sessions",
+  dynamoRiskTable:  import.meta.env.VITE_AWS_DYNAMO_RISK_TABLE ?? "riskshield-risk-data",
+  dynamoChatTable:  import.meta.env.VITE_AWS_DYNAMO_CHAT_TABLE ?? "riskshield-chat-history",
 
   // AWS region (used only for display/logging — actual region is in Lambda env)
   region:     import.meta.env.VITE_AWS_REGION       ?? "us-east-1",
