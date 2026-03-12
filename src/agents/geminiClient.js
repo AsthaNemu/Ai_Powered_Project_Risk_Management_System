@@ -6,19 +6,6 @@
 
 import { GEMINI } from "../config.js";
 
-export function isGeminiAuthError(err) {
-  if (!err) return false;
-  const msg = String(err.message ?? "").toLowerCase();
-  if (!msg.includes("api key")) return false;
-  return (
-    msg.includes("expired") ||
-    msg.includes("invalid") ||
-    msg.includes("not valid") ||
-    msg.includes("revoked") ||
-    msg.includes("leaked")
-  );
-}
-
 /**
  * Call Gemini with a system prompt + user message.
  * @param {string}  apiKey       - Gemini API key (from user input or env)

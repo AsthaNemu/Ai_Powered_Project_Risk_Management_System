@@ -37,7 +37,7 @@ function FileZone({ label, hint, file, setFile, color }) {
   );
 }
 
-export default function UploadView({ onStart, defaultApiKey = "", error = "" }) {
+export default function UploadView({ onStart, defaultApiKey = "" }) {
   const [apiKey,     setApiKey]     = useState(defaultApiKey);
   const [srsFile,    setSrsFile]    = useState(null);
   const [brdFile,    setBrdFile]    = useState(null);
@@ -130,25 +130,6 @@ export default function UploadView({ onStart, defaultApiKey = "", error = "" }) 
       >
         ▶ Run Risk Analysis
       </button>
-
-      {error && (
-        <div style={{
-          marginTop: 14,
-          padding: "10px 12px",
-          borderRadius: 8,
-          border: `1px solid ${T.red}55`,
-          background: `${T.red}10`,
-          color: T.red,
-          fontFamily: T.mono,
-          fontSize: 11,
-          lineHeight: 1.5,
-        }}>
-          {error}
-          <div style={{ marginTop: 6, color: T.textDim }}>
-            Tip: create a fresh Gemini API key in `aistudio.google.com`, update your `.env.local` or paste it above, then run again.
-          </div>
-        </div>
-      )}
 
       {!canRun && (
         <div style={{ textAlign: "center", fontSize: 12, color: T.textDim, marginTop: 10, fontFamily: T.mono }}>
