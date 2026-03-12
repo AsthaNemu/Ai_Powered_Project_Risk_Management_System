@@ -4,9 +4,9 @@
   "description": "AI-powered risk management system for SRS & BRD documents using Gemini 2.5 Flash",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "node ./node_modules/vite/bin/vite.js --port 3000 --open",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
     "lint": "eslint src --ext .js,.jsx"
   },
   "dependencies": {

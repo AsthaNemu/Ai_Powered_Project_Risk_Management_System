@@ -23,7 +23,9 @@ export const USE_AWS = import.meta.env.VITE_USE_AWS === "true";
 // ─────────────────────────────────────────────────────────────
 export const GEMINI = {
   apiKey:      import.meta.env.VITE_GEMINI_API_KEY ?? "",
-  model:       import.meta.env.VITE_GEMINI_MODEL   ?? "gemini-2.5-flash-preview-04-17",
+  // Default to a stable, widely-available model ID.
+  // Preview model IDs can disappear or be unsupported for v1beta generateContent.
+  model:       import.meta.env.VITE_GEMINI_MODEL   ?? "gemini-2.5-flash-lite",
   // maxOutputTokens is hardcoded to 65536 (max) in geminiClient.js
   // to prevent JSON truncation on large risk arrays. Do not lower this.
   temperature: Number(import.meta.env.VITE_GEMINI_TEMPERATURE ?? 0.15),
